@@ -1,0 +1,243 @@
+openapi: 3.0.3
+servers:
+  - url: https://api.mygame.com/v1
+info:
+  title: JustOne API
+  contact: 
+    name: Developer Support
+    email: cdoblas.eng@gmail.com
+  version: 1.0.0
+  description: API to manage games and players in MyGame.
+  license:
+    name: license
+    url: https://opensource.org/licenses/MIT
+tags:
+  - name: Game Management
+    description: Endpoints for creating, joining, and managing games.
+  - name: Clue Management
+    description: Endpoints for clue-related operations.
+paths:
+  /game/create:
+    post:
+      summary: Create a new game and add the player who creates it.
+      description: This endpoint allows a player to create a new game and automatically join it as the host.
+      operationId: createGame
+      tags:
+        - Game Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                playerName:
+                  type: string
+              required:
+                - playerName
+      responses:
+        '201':
+          description: Game created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameResponse'
+
+  /game/join/{gameId}:
+    post:
+      summary: Join an existing game.
+      description: This endpoint allows a player to join an existing game by providing the game ID.
+      operationId: joinGame
+      tags:
+        - Game Management
+      parameters:
+        - $ref: '#/components/parameters/gameId'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                playerName:
+                  type: string
+              required:
+                - playerName
+      responses:
+        '200':
+          description: Joined the game successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameResponse'
+
+  /game/start/{gameId}:
+    put:
+      summary: Start the game.
+      description: This endpoint allows the host to start the game once all players are ready.
+      operationId: startGame
+      tags:
+        - Game Management
+      parameters:
+        - $ref: '#/components/parameters/gameId'
+      responses:
+        '200':
+          description: Game started successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameResponse'
+    
+
+  /game/{gameId}:
+    delete:
+      summary: Finish the game.
+      description: This endpoint allows the host to finish the game.
+      operationId: finishGame
+      tags:
+        - Game Management
+      parameters:
+        - $ref: '#/components/parameters/gameId'
+      responses:
+        '204':
+          description: Game finished successfully.
+
+  /game/{gameId}/player/{playerId}:
+    delete:
+      summary: Remove a player from the game (only host can do this before the game starts).
+      description: This endpoint allows the host to remove a player from the game before it starts.
+      operationId: removePlayer
+      tags:
+        - Game Management
+      parameters:
+        - $ref: '#/components/parameters/gameId'
+        - $ref: '#/components/parameters/playerId'
+      responses:
+        '204':
+          description: Player removed successfully.
+  /clue:
+    post:
+      summary: Give a clue to the actual player
+      description: This endpoint allows a player to give a clue.
+      operationId: giveClue
+      tags:
+        - Clue Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: 
+              $ref: '#/components/schemas/Clue'
+              
+      responses:
+        '204':
+          description: Sent clue successfully.
+        '409':
+          description: Error sending clue
+
+  /game/{gameId}/resolve:
+    post:
+      summary: Player signals that they are attempting to guess the word.
+      description: This endpoint allows a player to signal that they are attempting to guess the word.
+      operationId: resolveGuess
+      tags:
+        - Player Management
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema:
+            type: string
+          description: The ID of the game
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Solution'
+      responses:
+        '200':
+          description: Guess attempt acknowledged
+        '400':
+          description: Invalid request (e.g., game not started or not the guesser's turn)
+  /game/{gameId}/nextRound:
+    post:
+      summary: Advance to the next round.
+      description: This endpoint allows the game to advance to the next round after a guess has been made.
+      operationId: nextRound
+      tags:
+        - Game Management
+      parameters:
+        - $ref: '#/components/parameters/gameId'
+      responses:
+        '200':
+          description: Advanced to the next round successfully.
+
+components:
+  parameters:
+    gameId:
+      name: gameId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: ID of the game
+
+    playerId:
+      name: playerId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: ID of the player
+      
+  schemas:
+    GameResponse:
+      type: object
+      properties:
+        gameId:
+          type: string
+          example: "abc123"
+        players:
+          type: array
+          items:
+            type: string
+          example: ["Carlos", "Lucía"]
+        status:
+          type: string
+          enum: [waiting_for_players, in_progress, finished]
+          example: waiting_for_players
+    Clue:
+      type: object
+      properties:
+        gameId:
+          type: string
+          description: The ID of the game which the player is gaming
+        playerId:
+          type: string
+          description: The ID of the player who sent the clue
+        word:
+          type: string
+          description: The clue word
+      required:
+        - playerId
+        - gameId
+        - word
+      example:
+        gameId: "7237AV"
+        playerId: "player123"
+        word: "animal"
+    Solution:
+      type: object
+      properties:
+        playerId:
+          type: string
+          description: The ID of the player who sent the clue
+        value:
+          type: string
+          enum: [right, wrong]
+          example: right
+      required:
+        - playerId
+        - value
