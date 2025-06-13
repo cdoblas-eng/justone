@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Simulador de Juego</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .player { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; }
+        .log { margin-top: 10px; color: green; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<h1>Simulador de Juego con 3 Jugadores</h1>
+
+<div class="player" id="player1">
+    <h3>ALADIN</h3>
+    <button onclick="crearPartida()">Crear partida</button>
+    <div class="log" id="log1"></div>
+</div>
+
+<div class="player" id="player2">
+    <h3>DANI</h3>
+    <button onclick="unirsePartida('DANI')">Unirse a la partida</button>
+    <div class="log" id="log2"></div>
+</div>
+
+<div class="player" id="player3">
+    <h3> RAFA</h3>
+    <button onclick="unirsePartida('RAFA')">Unirse a la partida</button>
+    <div class="log" id="log3"></div>
+</div>
+
+<script>
+    let gameId = null;
+
+
+
+    async function crearPartida() {
+        try {
+            const response = await fetch('http://localhost:3000/justone/game/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playerName: "ALADIN"
+                })
+
+            });
+            const partida = await response.json()
+            console.log(partida)
+            gameId = partida.id;
+            document.getElementById('log1').textContent = `Partida creada con ID: ${gameId}`;
+        } catch (error) {
+            // document.getElementById('log1').textContent = 'Error al crear la partida';
+            console.error(error);
+        }
+    }
+
+    async function unirsePartida(jugador) {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/justone/game/join/${gameId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playerName: jugador })
+            });
+
+            const data = await response.json();
+            document.getElementById(`log${jugador === 'DANI' ? 2 : 3}`).textContent = `Jugador unido: ${JSON.stringify(data)}`;
+            iniciarSSE(gameId, data.playerId)
+        } catch (error) {
+            document.getElementById(`log${jugador === 'DANI' ? 2 : 3}`).textContent = 'Error al unirse';
+            console.error(error);
+        }
+    }
+
+    function iniciarSSE(gameId, playerId) {
+        const source = new EventSource(`http://localhost:3000/justone/sse/join/${gameId}/player/${playerId}`);
+
+        source.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const logDiv = document.getElementById(2);
+            logDiv.textContent = `[SSE] Mensaje recibido: ${JSON.stringify(data)}`;
+        };
+
+        source.onerror = (err) => {
+            console.error(`[SSE] Error con ${jugador}`, err);
+        };
+    }
+</script>
+</body>
+</html>
