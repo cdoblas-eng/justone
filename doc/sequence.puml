@@ -1,0 +1,104 @@
+@startuml
+title JUST ONE 
+
+actor user1
+actor user2
+actor host
+
+participant "JUST ONE SERVER" as API
+' participant "Base de Datos" as BD
+
+host -> API : Crea partida
+activate API #F8CECC
+API -> API : Crea la partida
+note right of API
+    La partida se crea con un ID único
+    y se guarda en la base de datos.
+    Se asigna el usuario como host.
+    Y se asigna estado a "esperando jugadores".
+end note
+API -> host : Retorna partida creada {id}
+deactivate API
+host ->[  : Notifica partida creada al resto de jugadores
+user1 -> API : Solicita unirse a la partida {id}
+activate API #F8CECC
+API -> API : Añade jugador {user1} a la partida
+API --> user1 : Notifica que se ha unido a la partida {id}
+API --> host : Notifica que se ha unido un jugador {id}
+deactivate API
+user2 -> API : Solicita unirse a la partida {id}
+activate API #F8CECC
+API -> API : Añade jugador {user2} a la partida
+API --> user2 : Notifica que se ha unido a la partida {id}
+API --> host : Notifica que se ha unido un jugador {user2}
+API --> user1 : Notifica que se ha unido un jugador {user2}
+deactivate API
+host -> API : Inicia partida {id}
+activate API #F8CECC
+API -> API : Se inicia la partida
+note right of API
+    Se cambia el estado de la partida a "jugando".
+    Se asigna el turno a un jugador al azar. Ejemplo: user1.
+    Se notifica a todos los jugadores que la partida ha comenzado.
+end note
+API -> user1 : Notifica que la partida ha comenzado y le toca adivinar
+API -> user2 : Notifica que la partida ha comenzado y muestra palabras
+API -> host : Notifica que la partida ha comenzado y muestra palabras
+deactivate API
+user1 -> API : Selecciona un numero del 1 al 5 {número}
+activate API #F8CECC
+API -> API : Se establece palabra a adivinar {palabra}
+note right of API
+    Se notifica a todos los jugadores el número elegido.
+    Se establece un temporizador de 30 segundos para que los jugadores envíen sus pistas.
+end note
+API ->[  : notifica el numero elegido a todos los jugadores
+API -> API : Recibe pistas de los jugadores
+note right of API
+    Una vez que todos los jugadores han enviado sus pistas,
+    se resuelven las pistas.
+    Se evalúa si el jugador adivina la palabra.
+end note
+
+deactivate API
+?-> API : Los jugadores envian su pista
+activate API #F8CECC
+
+note left of API
+    Una vez que todos los jugadores han enviado sus pistas,
+end note
+API -> API : Se evaluan las pistas
+
+
+API ->[ : Notifica a todos los jugadores si sus pistas han sido correctas
+API -> user1 : Le indica que puede adivinar la palabra
+deactivate API
+note right of user1
+    dependiendo de si la partida está en modo presencial o remoto,
+    se resuelve la ronda de forma diferente.
+end note
+
+alt [gameMode presencial]
+    user1 -> API : Resuelve la ronda [acierto|fallo]
+else [gameMode remoto]
+    loop [user1 !acierto OR intento < 3]
+        user1 -> API : Se envia la palabra
+        activate API #F8CECC
+        API -> API : Se evalua la palabra enviada {palabra} -> acierto
+        API ->[ : Notifica a todos los jugadores si la palabra es correcta
+        deactivate API
+    end
+end
+
+
+API -> API : Se pasa a la siguiente ronda
+activate API #F8CECC
+note right of API
+    Se cambia el turno al siguiente jugador.
+    Se generan nuevas palabras para la siguiente ronda.
+    Se notifica a todos los jugadores que se ha pasado a la siguiente ronda.
+end note
+API ->[ : Notifica a todos los jugadores que se ha pasado a la siguiente ronda
+deactivate API
+
+@enduml
