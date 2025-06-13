@@ -1,18 +1,18 @@
-import { FastifyReply } from 'fastify'
+import {FastifyReply} from 'fastify'
+import {games} from "../services/gameService";
+import {Player} from "../models/player";
 
-type Client = {
-    id: number
-    reply: FastifyReply
-}
+let addedPlayer: Player;
 
-let clients: Client[] = []
-let clientIdCounter = 0
-
-export function addClient(reply: FastifyReply) {
-    const id = clientIdCounter++
-    const client = { id, reply }
-
-    clients.push(client)
+export function addPlayerSSE(reply: FastifyReply, gameId: string, playerId: string) {
+    games[gameId].players.map(player => {
+        // player.reply = playerId == player.id ? reply : player.reply;
+        if (playerId == player.id) {
+            player.reply = reply;
+            addedPlayer = player;
+        }
+        return player;
+    })
 
     // Configurar cabeceras SSE
     reply
@@ -24,15 +24,16 @@ export function addClient(reply: FastifyReply) {
     })
 
     // Enviar evento de bienvenida
-    reply.raw.write(`data: Bienvenido cliente ${id}\n\n`)
+    reply.raw.write({msg: "welcolme"})
 
+    //Remove player
     reply.raw.on('close', () => {
-        clients = clients.filter(c => c.id !== id)
+        games[gameId].players = games[gameId].players.filter(player => player.id !== playerId)
+        //Enviar mensaje de que un jugador a salido de la sala
     })
 }
 
-export function broadcast(message: string) {
-    for (const client of clients) {
-        client.reply.raw.write({data: "Broadcast", msg: message})
-    }
+export function sendMsg(player: Player, message: {}) {
+    if (player.reply)
+        player.reply.raw.write(message)
 }

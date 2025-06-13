@@ -5,14 +5,14 @@ import gameRoutes from './routes/game'
 import sseRoute from './routes/sse'
 
 const buildApp = async () => {
-    const app = Fastify({ logger: true });
+    const app = Fastify({logger: true});
     const appPrefix = process.env.APP_NAME || '';
     await app.register(cors);
-    await app.register(gameRoutes, { prefix: appPrefix });
-    await app.register(sseRoute, { prefix: appPrefix });
+    await app.register(gameRoutes, {prefix: appPrefix});
+    await app.register(sseRoute, {prefix: appPrefix});
 
     app.get('/health', async () => {
-        return { status: 'ok' };
+        return {status: 'ok'};
     });
 
     return app;

@@ -1,6 +1,6 @@
 import {createPlayer, Player} from "./player";
 import {Clue} from "./clue";
-import { customAlphabet } from 'nanoid';
+import {customAlphabet} from 'nanoid';
 
 
 export enum GameStatus {
