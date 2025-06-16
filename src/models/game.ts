@@ -13,9 +13,10 @@ export interface Game {
     id: string;
     players: Player[];
     status: GameStatus;
-    clues?: Clue[];
+    clues: Clue[];
     currentWord?: string;
     round: number;
+    activePlayerIndex: number;
 }
 
 // Función que genera un nuevo juego con UUID único cada vez
@@ -27,6 +28,7 @@ export function createNewGame(playerName: string): Game {
         status: GameStatus.WAITING_FOR_PLAYERS,
         players: [createPlayer(playerName, true)],
         clues: [],
-        round: 0
+        round: 0,
+        activePlayerIndex: -1,
     };
 }
