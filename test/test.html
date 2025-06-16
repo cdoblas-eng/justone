@@ -16,23 +16,39 @@
 <div class="player" id="player1">
     <h3>ALADIN</h3>
     <button onclick="crearPartida()">Crear partida</button>
+    <button onclick="empezarPartida()">Empezar partida</button>
+    <button onclick="siguienteRonda()">Siguiente Ronda</button>
+    <button onclick="elegirNumero('4')">Elegir Numero</button>
+    <button onclick="pista('NoManSky', 1)">Dar pista</button>
+<!--    <button onclick="resolver('Camello')">Resolver pista</button>-->
     <div class="log" id="log1"></div>
 </div>
 
 <div class="player" id="player2">
     <h3>DANI</h3>
-    <button onclick="unirsePartida('DANI')">Unirse a la partida</button>
+    <button onclick="unirsePartida('DANI', 2)">Unirse a la partida</button>
+    <button onclick="pista('jony', 2)">Dar pista</button>
     <div class="log" id="log2"></div>
 </div>
 
 <div class="player" id="player3">
-    <h3> RAFA</h3>
-    <button onclick="unirsePartida('RAFA')">Unirse a la partida</button>
+    <h3>RAFA</h3>
+    <button onclick="unirsePartida('RAFA', 3)">Unirse a la partida</button>
+    <button onclick="pista('jony', 3)">Dar pista</button>
+
     <div class="log" id="log3"></div>
+</div>
+
+<div class="player" id="player4">
+    <h3> EJECUTAR ACCIONES</h3>
+    <button onclick="peticion()">BROADCAST</button>
+    <div class="log" id="log4"></div>
 </div>
 
 <script>
     let gameId = null;
+    let playerId = null;
+    let playersId = []
 
 
 
@@ -46,17 +62,21 @@
                 })
 
             });
-            const partida = await response.json()
-            console.log(partida)
-            gameId = partida.id;
+            const respuesta = await response.json()
+            console.log(respuesta)
+            gameId = respuesta.gameId;
+            playerId = respuesta.playerId;
+            playersId[0] = respuesta.playerId;
             document.getElementById('log1').textContent = `Partida creada con ID: ${gameId}`;
+            iniciarSSE(gameId, playerId, 1)
+            // await unirsePartida(partida.playerId, 1)
         } catch (error) {
-            // document.getElementById('log1').textContent = 'Error al crear la partida';
+            document.getElementById('log1').textContent = 'Error al crear la partida';
             console.error(error);
         }
     }
 
-    async function unirsePartida(jugador) {
+    async function unirsePartida(playerName, elementId) {
         if (!gameId) {
             alert("Primero debe crearse una partida");
             return;
@@ -66,31 +86,112 @@
             const response = await fetch(`http://localhost:3000/justone/game/join/${gameId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playerName: jugador })
+                body: JSON.stringify({ playerName: playerName })
             });
 
-            const data = await response.json();
-            document.getElementById(`log${jugador === 'DANI' ? 2 : 3}`).textContent = `Jugador unido: ${JSON.stringify(data)}`;
-            iniciarSSE(gameId, data.playerId)
+            const data = await response.json()
+            playerId  = data.playerId
+            playersId[elementId] = playerId
+            document.getElementById(`log${elementId}`).textContent = `INFORMACIÓN RECIBIDA: ${JSON.stringify(data)}`;
         } catch (error) {
-            document.getElementById(`log${jugador === 'DANI' ? 2 : 3}`).textContent = 'Error al unirse';
+            document.getElementById(`log${elementId}`).textContent = 'Error al unirse';
             console.error(error);
         }
+        console.log('gameId ' + gameId);
+        console.log('playerId ' + playerId);
+        iniciarSSE(gameId, playerId, elementId)
     }
 
-    function iniciarSSE(gameId, playerId) {
+    function iniciarSSE(gameId, playerId, elementId) {
         const source = new EventSource(`http://localhost:3000/justone/sse/join/${gameId}/player/${playerId}`);
 
         source.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            const logDiv = document.getElementById(2);
-            logDiv.textContent = `[SSE] Mensaje recibido: ${JSON.stringify(data)}`;
+            const logDiv = document.getElementById(`log${elementId}`);
+            console.log(`${event.data}`);
+            logDiv.textContent = `[SSE] Mensaje recibido: ${data.msg}`;
         };
 
         source.onerror = (err) => {
-            console.error(`[SSE] Error con ${jugador}`, err);
+            console.error(`[SSE] Error con ${playerName}`, err);
         };
     }
+
+    async function peticion() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const response = await fetch('http://localhost:3000/justone/debug/game?gameId=' + gameId, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+
+        });
+        await response
+    }
+
+    async function empezarPartida() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const response = await fetch('http://localhost:3000/justone/game/start/' + gameId, {
+            method: 'PUT',
+        });
+        await response
+    }
+
+    async function elegirNumero(numero) {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const response = await fetch('http://localhost:3000/justone/game/' + gameId + '/giveNumber/' + numero, {
+            method: 'POST',
+        });
+    }
+
+    async function pista(palabra, numJugador) {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const response = await fetch('http://localhost:3000/justone/clue', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                playerId: playersId[numJugador],
+                gameId: gameId,
+                word: palabra
+            })
+
+        });
+    }
+
+    async function siguienteRonda() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const response = await fetch('http://localhost:3000/justone/game/nextRound/' + gameId, {
+            method: 'POST',
+        });
+        await response
+    }
+
+    // async function resolver() {
+    //     const response = await fetch('http://localhost:3000/justone/game/start/' + gameId, {
+    //         method: 'PUT',
+    //     });
+    //     await response
+    // }
 </script>
 </body>
 </html>
