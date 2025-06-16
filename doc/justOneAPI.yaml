@@ -42,6 +42,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GameResponse'
+        '409':
+          description: Error, El jugador ya está en un juego.
 
   /game/join/{gameId}:
     post:
@@ -173,6 +175,38 @@ paths:
       responses:
         '200':
           description: Advanced to the next round successfully.
+
+  /game/{gameId}/giveNumber/{number}:
+    post:
+      summary: Player signals that they are attempting to guess the word.
+      description: This endpoint allows a player to signal that they are attempting to guess the word.
+      operationId: resolveGuess
+      tags:
+        - Player Management
+      parameters:
+        - in: path
+          name: gameId
+          required: true
+          schema:
+            type: string
+          description: The ID of the game
+        - in: path
+          name: number
+          required: true
+          schema:
+            type: number
+          description: The ID of the game
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Solution'
+      responses:
+        '200':
+          description: Guess attempt acknowledged
+        '400':
+          description: Invalid request (e.g., game not started or not the guesser's turn)
 
 components:
   parameters:
