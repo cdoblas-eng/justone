@@ -1,39 +1,66 @@
-import {FastifyReply} from 'fastify'
-import {games} from "../services/gameService";
-import {Player} from "../models/player";
+import { FastifyReply } from 'fastify';
+import { games } from "../services/gameService";
+import { Player } from "../models/player";
 
 let addedPlayer: Player;
+const activePlayers: Record<string, FastifyReply> = {};
 
+/**
+ * Establece una conexión SSE para un jugador dentro de una partida.
+ */
 export function addPlayerSSE(reply: FastifyReply, gameId: string, playerId: string) {
-    games[gameId].players.map(player => {
-        // player.reply = playerId == player.id ? reply : player.reply;
-        if (playerId == player.id) {
-            player.reply = reply;
+    const game = games[gameId];
+    if (!game) {
+        reply.status(404).send({ error: "Game not found" });
+        return;
+    }
+
+    game.players = game.players.map(player => {
+        if (player.id === playerId) {
+            activePlayers[player.id] = reply;
             addedPlayer = player;
         }
         return player;
-    })
+    });
 
-    // Configurar cabeceras SSE
-    reply
-        .raw.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-    })
+    // Cabeceras SSE
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+    // reply.raw.flushHeaders();
 
-    // Enviar evento de bienvenida
-    reply.raw.write({msg: "welcolme"})
-
-    //Remove player
+    // Manejar desconexión
     reply.raw.on('close', () => {
-        games[gameId].players = games[gameId].players.filter(player => player.id !== playerId)
-        //Enviar mensaje de que un jugador a salido de la sala
-    })
+        console.log(`Jugador ${playerId} desconectado de la partida ${gameId}`);
+        games[gameId].players = games[gameId].players.filter(player => player.id !== playerId);
+        // Aquí puedes notificar al resto de jugadores si quieres
+    });
+
+
+    // Enviar mensaje inicial
+    sendMsg(addedPlayer, { msg: "welcome" });
 }
 
+/**
+ * Envía un mensaje SSE a un jugador.
+ */
 export function sendMsg(player: Player, message: {}) {
-    if (player.reply)
-        player.reply.raw.write(message)
+    const reply = activePlayers[player.id];
+    if (reply && !reply.raw.writableEnded) {
+        const formatted = `data: ${JSON.stringify(message)}\n\n`;
+        reply.raw.write(formatted);
+    }
+}
+
+/**
+ * Envía un mensaje SSE a todos los jugadores de una partida.
+ */
+export function sendMsgToAll(gameId: string, message: {}) {
+    const game = games[gameId];
+    if (!game) return;
+
+    game.players.forEach(player => {
+        sendMsg(player, message);
+    });
 }
