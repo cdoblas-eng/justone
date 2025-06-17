@@ -1,12 +1,13 @@
-import {sendMsg, sendMsgToAll} from "../utils/sse";
-import {gamePossibleWords, games} from "./gameService";
+import {sendMsgToAll} from "../utils/sse";
+import {canBePlayable, games} from "./gameService";
 import {Clue} from "../models/clue";
+import {GameStatus} from "../models/game";
+import {HttpError} from "../errors/httpError";
 
 
 export async function giveClue(clue: Clue): Promise<void> {
-
     const game = games[clue.gameId];
-    if (game) {
+    if (canBePlayable(game.id, GameStatus.WAITING_FOR_CLUES)) {
         //Si el jugador ha dado ya una pista
 
         if (game.clues.filter(c => c.playerId === clue.playerId).length > 0) {
@@ -21,7 +22,25 @@ export async function giveClue(clue: Clue): Promise<void> {
             sendMsgToAll(game.id, {msg: `Ha llegado una pista, quedan ${(game.players.length - 1) - game.clues.length}`});
         }else{ // CUANDO TODOS LOS JUGADORES HAN MANDADO LAS PITAS SE PROCESAN
             sendMsgToAll(game.id, {msg: `PISTAS: ${removeAllSimilarWords(game.clues.map(value => value.word))}`});
+            game.status = GameStatus.WAITING_TO_BE_RESOLVED;
         }
+    }
+}
+
+export async function resolve(gameId: string, playerId: string, solution: string){
+    const game = games[gameId];
+    const activePlayer = game.players[game.activePlayerIndex];
+    if (canBePlayable(gameId, GameStatus.WAITING_TO_BE_RESOLVED) && activePlayer.id === playerId) {
+        solution = solution.trim()
+
+        if (normalize(game.currentWord) === normalize(solution)) {
+            sendMsgToAll(game.id, {msg: "YESSSSSSSSSS"})
+            game.status = GameStatus.WAITING_FOR_PLAYERS;
+        } else{
+            sendMsgToAll(game.id, {msg: "NOOOOOOOOOOO, cagó. Try again"})
+        }
+    }else{
+        throw new HttpError(400, "You are not the active player.");
     }
 }
 
@@ -45,14 +64,12 @@ export function removeAllSimilarWords(words: string[]): string[] {
         normalizedMap.get(normalized)!.push(word);
     }
 
-    // Solo mantener palabras que no tienen duplicados similares
     const result: string[] = [];
 
     for (const [_, group] of normalizedMap.entries()) {
         if (group.length === 1) {
             result.push(group[0]);
         }
-        // si hay más de 1 palabra similar, las eliminamos todas
     }
 
     return result;
