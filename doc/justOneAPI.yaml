@@ -84,15 +84,14 @@ paths:
       parameters:
         - $ref: '#/components/parameters/gameId'
       responses:
-        '200':
+        '204':
           description: Game started successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GameResponse'
+        '501':
+          description: Error, the game has already started or is not ready to start.
+
     
 
-  /game/{gameId}:
+  /game/{gameId}: 
     delete:
       summary: Finish the game.
       description: This endpoint allows the host to finish the game.
@@ -173,14 +172,14 @@ paths:
       parameters:
         - $ref: '#/components/parameters/gameId'
       responses:
-        '200':
+        '204':
           description: Advanced to the next round successfully.
 
   /game/{gameId}/giveNumber/{number}:
     post:
-      summary: Player signals that they are attempting to guess the word.
-      description: This endpoint allows a player to signal that they are attempting to guess the word.
-      operationId: resolveGuess
+      summary: The player that is guessing gives a number.
+      description: This endpoint allows the player who is guessing to give a number.
+      operationId: giveNumber
       tags:
         - Player Management
       parameters:
@@ -194,14 +193,8 @@ paths:
           name: number
           required: true
           schema:
-            type: number
-          description: The ID of the game
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Solution'
+            type: string
+          description: Selected number by the player
       responses:
         '200':
           description: Guess attempt acknowledged
@@ -232,16 +225,12 @@ components:
       properties:
         gameId:
           type: string
-          example: "abc123"
-        players:
-          type: array
-          items:
-            type: string
-          example: ["Carlos", "Lucía"]
-        status:
+          example: "ABC723A"
+          description: The ID of the game, which is unique for each game. Its composed by 6 characters.
+        playerId:
           type: string
-          enum: [waiting_for_players, in_progress, finished]
-          example: waiting_for_players
+          example: "player456"
+
     Clue:
       type: object
       properties:
@@ -268,10 +257,10 @@ components:
         playerId:
           type: string
           description: The ID of the player who sent the clue
-        value:
+        word:
           type: string
           enum: [right, wrong]
           example: right
       required:
         - playerId
-        - value
+        - word
