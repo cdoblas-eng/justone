@@ -13,70 +13,93 @@
 
 <h1>Simulador de Juego con 3 Jugadores</h1>
 
-<div class="player" id="player1">
-    <h3>ALADIN</h3>
-    <button onclick="crearPartida()">Crear partida</button>
+<div class="player" id="player0">
+    <h3 id="header0">RAFA</h3>
+    <button onclick="crearPartida(0)">Crear partida</button>
     <button onclick="empezarPartida()">Empezar partida</button>
-    <button onclick="siguienteRonda()">Siguiente Ronda</button>
-    <button onclick="elegirNumero('4')">Elegir Numero</button>
-    <button onclick="pista('NoManSky', 1)">Dar pista</button>
-<!--    <button onclick="resolver('Camello')">Resolver pista</button>-->
+    <button onclick="unirsePartida(0)">Unirse a la partida</button>
+
+    <button onclick="elegirNumero(0)">Elegir Numero</button>
+    <label for="input0"></label><input type="text" id="input0" placeholder="Numero">
+
+    <button onclick="pista(0)">Dar pista</button>
+    <label for="input00"></label><input type="text" id="input00" placeholder="Pista">
+
+    <button onclick="resolver(0)">Resolver pista</button>
+    <label for="input000"></label><input type="text" id="input000" placeholder="Resolución">
+    <div class="log" id="log0"></div>
+</div>
+
+<div class="player" id="player1">
+    <h3 id="header1">ALADIN</h3>
+    <button onclick="crearPartida(1)">Crear partida</button>
+    <button onclick="empezarPartida()">Empezar partida</button>
+    <button onclick="unirsePartida(1)">Unirse a la partida</button>
+
+    <button onclick="elegirNumero(1)">Elegir Numero</button>
+    <label for="input1"></label><input type="text" id="input1" placeholder="Numero">
+
+    <button onclick="pista(1)">Dar pista</button>
+    <label for="input11"></label><input type="text" id="input11" placeholder="Pista">
+
+    <button onclick="resolver(1)">Resolver pista</button>
+    <label for="input111"></label><input type="text" id="input111" placeholder="Resolución">
     <div class="log" id="log1"></div>
 </div>
 
 <div class="player" id="player2">
-    <h3>DANI</h3>
-    <button onclick="unirsePartida('DANI', 2)">Unirse a la partida</button>
-    <button onclick="pista('jony', 2)">Dar pista</button>
+    <h3 id="header2">DANI</h3>
+    <button onclick="crearPartida(2)">Crear partida</button>
+    <button onclick="empezarPartida()">Empezar partida</button>
+    <button onclick="unirsePartida(2)">Unirse a la partida</button>
+
+    <button onclick="elegirNumero(2)">Elegir Numero</button>
+    <label for="input2"></label><input type="text" id="input2" placeholder="Numero">
+
+    <button onclick="pista(2)">Dar pista</button>
+    <label for="input22"></label><input type="text" id="input22" placeholder="Pista">
+
+    <button onclick="resolver(2)">Resolver pista</button>
+    <label for="input222"></label><input type="text" id="input222" placeholder="Resolución">
     <div class="log" id="log2"></div>
 </div>
 
-<div class="player" id="player3">
-    <h3>RAFA</h3>
-    <button onclick="unirsePartida('RAFA', 3)">Unirse a la partida</button>
-    <button onclick="pista('jony', 3)">Dar pista</button>
 
-    <div class="log" id="log3"></div>
-</div>
-
-<div class="player" id="player4">
-    <h3> EJECUTAR ACCIONES</h3>
-    <button onclick="peticion()">BROADCAST</button>
-    <div class="log" id="log4"></div>
-</div>
 
 <script>
     let gameId = null;
     let playerId = null;
     let playersId = []
+    let playersNames = ["RAFA", "ALADIN", "DANI"]
 
 
 
-    async function crearPartida() {
+    async function crearPartida(numJugador) {
         try {
             const response = await fetch('http://localhost:3000/justone/game/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    playerName: "ALADIN"
+                    playerName: playersNames[numJugador]
                 })
 
             });
+            const header = document.getElementById(`header${numJugador}`);
+            header.style.color = 'red';
             const respuesta = await response.json()
             console.log(respuesta)
             gameId = respuesta.gameId;
             playerId = respuesta.playerId;
-            playersId[0] = respuesta.playerId;
-            document.getElementById('log1').textContent = `Partida creada con ID: ${gameId}`;
-            iniciarSSE(gameId, playerId, 1)
-            // await unirsePartida(partida.playerId, 1)
+            playersId[numJugador] = playerId;
+            document.getElementById(`log${numJugador}`).textContent = `Partida creada con ID: ${gameId}`;
+            iniciarSSE(gameId, playerId, numJugador)
         } catch (error) {
-            document.getElementById('log1').textContent = 'Error al crear la partida';
+            document.getElementById(`log${numJugador}`).textContent = 'Error al crear la partida';
             console.error(error);
         }
     }
 
-    async function unirsePartida(playerName, elementId) {
+    async function unirsePartida(numJugador) {
         if (!gameId) {
             alert("Primero debe crearse una partida");
             return;
@@ -86,20 +109,20 @@
             const response = await fetch(`http://localhost:3000/justone/game/join/${gameId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playerName: playerName })
+                body: JSON.stringify({ playerName: playersNames[numJugador] })
             });
 
             const data = await response.json()
             playerId  = data.playerId
-            playersId[elementId] = playerId
-            document.getElementById(`log${elementId}`).textContent = `INFORMACIÓN RECIBIDA: ${JSON.stringify(data)}`;
+            playersId[numJugador] = playerId
+            document.getElementById(`log${numJugador}`).textContent = `INFORMACIÓN RECIBIDA: ${JSON.stringify(data)}`;
         } catch (error) {
-            document.getElementById(`log${elementId}`).textContent = 'Error al unirse';
+            document.getElementById(`log${numJugador}`).textContent = 'Error al unirse';
             console.error(error);
         }
         console.log('gameId ' + gameId);
         console.log('playerId ' + playerId);
-        iniciarSSE(gameId, playerId, elementId)
+        iniciarSSE(gameId, playerId, numJugador)
     }
 
     function iniciarSSE(gameId, playerId, elementId) {
@@ -143,23 +166,24 @@
         await response
     }
 
-    async function elegirNumero(numero) {
+    async function elegirNumero(numJugador) {
         if (!gameId) {
             alert("Primero debe crearse una partida");
             return;
         }
+        const number = document.getElementById(`input${numJugador}`).value;
 
-        const response = await fetch('http://localhost:3000/justone/game/' + gameId + '/giveNumber/' + numero, {
+        const response = await fetch('http://localhost:3000/justone/game/' + gameId + '/giveNumber/' + number, {
             method: 'POST',
         });
     }
 
-    async function pista(palabra, numJugador) {
+    async function pista(numJugador) {
         if (!gameId) {
             alert("Primero debe crearse una partida");
             return;
         }
-
+        const palabra = document.getElementById(`input${numJugador}${numJugador}`).value;
         const response = await fetch('http://localhost:3000/justone/clue', {
             method: 'POST',
             headers: {
@@ -186,12 +210,26 @@
         await response
     }
 
-    // async function resolver() {
-    //     const response = await fetch('http://localhost:3000/justone/game/start/' + gameId, {
-    //         method: 'PUT',
-    //     });
-    //     await response
-    // }
+    async function resolver(numJugador) {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+        // console.log(palabra, numJugador);
+        // console.log(document.getElementById(`input${numJugador}`).value);
+        const chosenWord = document.getElementById(`input${numJugador}${numJugador}${numJugador}`).value
+        const response = await fetch('http://localhost:3000/justone/game/' + gameId + '/resolve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                playerId: playersId[numJugador],
+                gameId: gameId,
+                word: chosenWord
+            })
+        });
+    }
 </script>
 </body>
 </html>
