@@ -1,5 +1,5 @@
 import {FastifyInstance} from "fastify";
-import {addPlayerSSE} from "../utils/sse";
+import {addPlayerSSE} from "../services/sseService";
 
 export default async function (fastify: FastifyInstance) {
 

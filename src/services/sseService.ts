@@ -1,5 +1,5 @@
 import { FastifyReply } from 'fastify';
-import { games } from "../services/gameService";
+import { games } from "./gameService";
 import { Player } from "../models/player";
 
 let addedPlayer: Player;
