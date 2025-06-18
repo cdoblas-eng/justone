@@ -34,7 +34,7 @@ export async function resolve(gameId: string, playerId: string, solution: string
     const game = getGame(gameId);
     const activePlayer = game.players[game.activePlayerIndex];
     checkGameStatus(game, GameStatus.WAITING_TO_BE_RESOLVED)
-    if (activePlayer.id === playerId){
+    if (activePlayer.id !== playerId){
         throw new HttpError(400, "You are not the active player.");
     }
     solution = solution.trim()
