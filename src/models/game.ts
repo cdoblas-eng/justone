@@ -5,7 +5,6 @@ import {customAlphabet} from 'nanoid';
 
 export enum GameStatus {
     WAITING_FOR_PLAYERS = 'waiting_for_players',
-    STARTED = 'started',
     WAITING_FOR_NUMBER = 'waiting_for_number',
     WAITING_FOR_CLUES = 'waiting_for_clues',
     WAITING_TO_BE_RESOLVED = 'waiting_for_resolution',
@@ -16,6 +15,7 @@ export interface Game {
     players: Player[];
     status: GameStatus;
     clues: Clue[];
+    candidateWords: string[];
     currentWord: string;
     round: number;
     activePlayerIndex: number;
@@ -29,6 +29,7 @@ export function createNewGame(playerName: string): Game {
         status: GameStatus.WAITING_FOR_PLAYERS,
         players: [createPlayer(playerName, true)],
         clues: [],
+        candidateWords: [],
         currentWord: '',
         round: 0,
         activePlayerIndex: -1,

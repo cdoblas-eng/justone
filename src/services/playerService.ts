@@ -1,5 +1,5 @@
 import {sendMsgToAll} from "./sseService";
-import {getGame, checkGameStatus, checkPlayerNumber} from "./gameService";
+import {getGame, checkGameStatus} from "./gameService";
 import {Clue} from "../models/clue";
 import {GameStatus} from "../models/game";
 import {HttpError} from "../errors/httpError";
@@ -8,17 +8,23 @@ import {HttpError} from "../errors/httpError";
 export async function giveClue(clue: Clue): Promise<void> {
     const game = getGame(clue.gameId)
     checkGameStatus(game, GameStatus.WAITING_FOR_CLUES)
+
+    if (clue.playerId === game.players[game.activePlayerIndex].id){
+        throw new HttpError(400, "The active player cant sent a clue");
+    }
     if (game.clues.filter(c => c.playerId === clue.playerId).length > 0) {
         throw new HttpError(400, "The player has already sent a clue");
     }
 
     clue.word = clue.word.trim()
     game.clues.push(clue)
-
+    const playerIdList = game.players.map(value => {
+        return value.id
+    });
     if (game.clues.length !== game.players.length - 1) {
-        sendMsgToAll(game.id, {msg: `Ha llegado una pista, quedan ${(game.players.length - 1) - game.clues.length}`});
+        sendMsgToAll(playerIdList, {msg: `Ha llegado una pista, quedan ${(game.players.length - 1) - game.clues.length}`});
     }else{ // CUANDO TODOS LOS JUGADORES HAN MANDADO LAS PITAS SE PROCESAN
-        sendMsgToAll(game.id, {msg: `PISTAS: ${removeAllSimilarWords(game.clues.map(value => value.word))}`});
+        sendMsgToAll(playerIdList, {msg: `PISTAS: ${removeAllSimilarWords(game.clues.map(value => value.word))}`});
         game.status = GameStatus.WAITING_TO_BE_RESOLVED;
     }
 
@@ -33,11 +39,14 @@ export async function resolve(gameId: string, playerId: string, solution: string
     }
     solution = solution.trim()
 
+    const playerIdList = game.players.map(value => {
+        return value.id
+    });
     if (normalize(game.currentWord) === normalize(solution)) {
-        sendMsgToAll(game.id, {msg: "Has adivinado la pista!"})
+        sendMsgToAll(playerIdList, {msg: "Has adivinado la pista!"})
         game.status = GameStatus.WAITING_FOR_PLAYERS;
     } else{
-        sendMsgToAll(game.id, {msg: "Respuesta incorrecta. Try again"})
+        sendMsgToAll(playerIdList, {msg: "Respuesta incorrecta. Try again"})
     }
 
 }
