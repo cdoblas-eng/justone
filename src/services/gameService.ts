@@ -21,7 +21,7 @@ export function checkPlayerName(playerName: string) {
 
 export function checkPlayerNumber(game: Game) {
     if (game.players.length < 2){
-        throw new HttpError(409, "There are no players playing in the game");
+        throw new HttpError(409, "There are no enough players in the game");
     }
 }
 
@@ -115,15 +115,5 @@ export function removePlayer(gameId: string, playerId: string) {
     }
     console.log(`Jugador ${playerId} desconectado de la partida ${gameId}`);
 }
-
-// export async function stopGame(gameId: string) {
-//     if (games[gameId]) {
-//
-//         games[gameId].players.forEach(player => {
-//             sendMsg(player, {msg: "THE GAME FINISHED"});
-//         })
-//         delete games[gameId];
-//     }
-// }
 
 

@@ -7,7 +7,6 @@ export function addPlayerSSE(reply: FastifyReply, gameId: string, playerId: stri
     checkIfPlayerExists(gameId, playerId);
     activePlayers[playerId] = reply;
 
-
     reply.raw.setHeader('Content-Type', 'text/event-stream');
     reply.raw.setHeader('Cache-Control', 'no-cache');
     reply.raw.setHeader('Connection', 'keep-alive');
