@@ -2,6 +2,7 @@ import {createPlayer, Player} from "./player";
 import {Clue} from "./clue";
 import {customAlphabet} from 'nanoid';
 
+const GAME_ID_SIZE: number = 4
 
 export enum GameStatus {
     WAITING_FOR_PLAYERS = 'waiting_for_players',
@@ -23,7 +24,7 @@ export interface Game {
 
 export function createNewGame(playerName: string): Game {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const generateGameId = customAlphabet(alphabet, 6);
+    const generateGameId = customAlphabet(alphabet, GAME_ID_SIZE);
     return {
         id: generateGameId(),
         status: GameStatus.WAITING_FOR_PLAYERS,
