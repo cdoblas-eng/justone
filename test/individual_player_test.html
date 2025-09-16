@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Simulador de Juego</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .player { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; }
+        .log { margin-top: 10px; color: green; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<h1>JUST ONE</h1>
+
+<div class="player" id="player-create">
+    <h3 id="header-create">Crear partida</h3>
+    <label for="username-create"></label><input type="text" id="username-create" placeholder="Nombre de usuario">
+    <button onclick="crearPartida()">Crear partida</button>
+    <button onclick="empezarPartida()">Empezar partida</button>
+    <h2 id="game-response-id" style="color: greenyellow"></h2>
+</div>
+
+<div class="player" id="player-join">
+    <h3 id="header-join">Unirse a partida</h3>
+    <label for="username-join"></label><input type="text" id="username-join" placeholder="Nombre de usuario">
+    <label for="gameId"></label><input type="text" id="gameId" placeholder="Identificador de la partida">
+    <button onclick="unirsePartida()">Unirse a la partida</button>
+</div>
+
+<div class="player" id="player-actions">
+    <h3 id="header-actions">Acciones de la partida</h3>
+
+    <button onclick="elegirNumero()">Elegir Numero</button>
+    <label for="number"></label><input type="text" id="number" placeholder="Numero">
+
+    <button onclick="pista()">Dar pista</button>
+    <label for="clue"></label><input type="text" id="clue" placeholder="Pista">
+
+    <button onclick="resolver()">Resolver pista</button>
+    <label for="resolution"></label><input type="text" id="resolution" placeholder="Resolución">
+</div>
+
+<h2 id="log"></h2>
+
+
+
+<script>
+    let gameId = null;
+    let playerId = null;
+
+    async function crearPartida() {
+        try {
+            const username = document.getElementById(`username-create`).value;
+
+            const response = await fetch('http://localhost:3000/justone/game/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playerName: username
+                })
+
+            });
+
+            const respuesta = await response.json()
+            if (!respuesta.error) {
+                const header = document.getElementById(`header-create`);
+                header.style.color = 'red';
+                console.log(respuesta)
+                gameId = respuesta.gameId;
+                playerId = respuesta.playerId;
+                document.getElementById(`game-response-id`).textContent = `Partida creada con ID: ${gameId}`;
+                iniciarSSE(gameId, playerId)
+            }else{
+                alert("Introduce el nombre del usuario");
+            }
+
+        } catch (error) {
+            document.getElementById(`log`).textContent = 'Error al crear la partida';
+            console.error(error);
+        }
+    }
+
+    async function unirsePartida() {
+        try {
+            const username = document.getElementById(`username-join`).value;
+            gameId = document.getElementById(`gameId`).value;
+
+            const response = await fetch(`http://localhost:3000/justone/game/join/${gameId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playerName: username })
+            });
+            const data = await response.json()
+            if (!data.error){
+                playerId  = data.playerId
+                document.getElementById(`log`).textContent = `Se ha encontrado la partida: ${JSON.stringify(data)}`;
+                iniciarSSE(gameId, playerId)
+            }else{
+                alert("Error al unirse a la partida");
+            }
+
+
+        } catch (error) {
+            document.getElementById(`log`).textContent = 'Error al unirse';
+            console.error(error);
+        }
+
+    }
+
+    function iniciarSSE(gameId, playerId) {
+        const source = new EventSource(`http://localhost:3000/justone/sse/join/${gameId}/player/${playerId}`);
+
+        source.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const logDiv = document.getElementById(`log`);
+            console.log(`${event.data}`);
+            logDiv.textContent = `[SSE]: ${data.msg}`;
+        };
+
+        source.onerror = (err) => {
+            console.error(`[SSE] Error con ${playerId}`, err);
+        };
+    }
+
+    async function peticion() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const response = await fetch('http://localhost:3000/justone/debug/game?gameId=' + gameId, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+
+        });
+        await response
+    }
+
+    async function empezarPartida() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const response = await fetch('http://localhost:3000/justone/game/start/' + gameId, {
+            method: 'PUT',
+        });
+        await response
+    }
+
+    async function elegirNumero() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+        const number = document.getElementById("number").value;
+
+        const response = await fetch('http://localhost:3000/justone/game/' + gameId + '/giveNumber/' + number, {
+            method: 'POST',
+        });
+    }
+
+    async function pista() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+        const palabra = document.getElementById("clue").value;
+        const response = await fetch('http://localhost:3000/justone/clue', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                playerId: playerId,
+                gameId: gameId,
+                word: palabra
+            })
+
+        });
+    }
+
+    async function siguienteRonda() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const response = await fetch('http://localhost:3000/justone/game/nextRound/' + gameId, {
+            method: 'POST',
+        });
+        await response
+    }
+
+    async function resolver() {
+        if (!gameId) {
+            alert("Primero debe crearse una partida");
+            return;
+        }
+
+        const chosenWord = document.getElementById(`resolution`).value
+        const response = await fetch('http://localhost:3000/justone/game/' + gameId + '/resolve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                playerId: playerId,
+                gameId: gameId,
+                word: chosenWord
+            })
+        });
+    }
+</script>
+</body>
+</html>

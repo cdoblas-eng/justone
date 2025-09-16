@@ -15,7 +15,7 @@ export function getGame(gameId: string) {
 
 export function checkPlayerName(playerName: string) {
     if (playerName.trim().length === 0) {
-        throw new HttpError(400, 'Invalid username name.');
+        throw new HttpError(400, 'Invalid username.');
     }
 }
 

@@ -6,9 +6,9 @@ import {giveClue, resolve} from "../services/playerService";
 
 export default async function (fastify: FastifyInstance) {
     fastify.post('/game/create', async (request, reply) => {
-            const {playerName} = request.body as { playerName: string };
-            const game = await createGame(playerName);
-            reply.code(201).send({gameId: game.id, playerId: game.players[0].id});
+        const {playerName} = request.body as { playerName: string };
+        const game = await createGame(playerName);
+        reply.code(201).send({gameId: game.id, playerId: game.players[0].id});
     });
 
     fastify.post('/game/join/:gameId', async (request, reply) => {
