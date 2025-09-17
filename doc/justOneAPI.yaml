@@ -1,26 +1,40 @@
-openapi: 3.0.3
-servers:
-  - url: https://api.mygame.com/v1
+openapi: 3.1.0
 info:
   title: JustOne API
+  version: 1.0.0
+  description: |
+    API for managing games and players in the JustOne word guessing game.
+    
+    JustOne is a cooperative word-guessing game where players give one-word clues 
+    to help a guesser identify a mystery word.
   contact: 
     name: Developer Support
     email: cdoblas.eng@gmail.com
-  version: 1.0.0
-  description: API to manage games and players in MyGame.
   license:
-    name: license
+    name: MIT License
     url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.mygame.com/v1
+    description: Production server
+  - url: https://api-staging.mygame.com/v1
+    description: Staging server
+
 tags:
   - name: Game Management
-    description: Endpoints for creating, joining, and managing games.
+    description: Endpoints for creating, joining, starting, and managing games
   - name: Clue Management
-    description: Endpoints for clue-related operations.
+    description: Endpoints for clue-related operations during gameplay
+  - name: Player Management
+    description: Endpoints for player actions and interactions
+
 paths:
-  /game/create:
+  /games:
     post:
-      summary: Create a new game and add the player who creates it.
-      description: This endpoint allows a player to create a new game and automatically join it as the host.
+      summary: Create a new game
+      description: |
+        Creates a new game and automatically adds the requesting player as the host.
+        The host has special privileges like starting the game and removing players.
       operationId: createGame
       tags:
         - Game Management
@@ -29,99 +43,184 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                playerName:
-                  type: string
-              required:
-                - playerName
+              $ref: '#/components/schemas/CreateGameRequest'
+            examples:
+              basic:
+                summary: Basic game creation
+                value:
+                  playerName: "Alice"
       responses:
         '201':
-          description: Game created successfully.
+          description: Game created successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GameResponse'
+              examples:
+                success:
+                  summary: Successful game creation
+                  value:
+                    gameId: "ABC123"
+                    playerId: "player_456"
+                    playerName: "Alice"
+                    isHost: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '409':
-          description: Error, El jugador ya está en un juego.
+          description: Player is already in an active game
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                already_in_game:
+                  summary: Player already in game
+                  value:
+                    error: "PLAYER_ALREADY_IN_GAME"
+                    message: "Player is already participating in an active game"
+                    code: 409
 
-  /game/join/{gameId}:
+  /games/{gameId}/join:
     post:
-      summary: Join an existing game.
-      description: This endpoint allows a player to join an existing game by providing the game ID.
+      summary: Join an existing game
+      description: |
+        Allows a player to join an existing game by providing the game ID.
+        Players can only join games that haven't started yet.
       operationId: joinGame
       tags:
         - Game Management
       parameters:
-        - $ref: '#/components/parameters/gameId'
-
+        - $ref: '#/components/parameters/GameId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                playerName:
-                  type: string
-              required:
-                - playerName
+              $ref: '#/components/schemas/JoinGameRequest'
+            examples:
+              basic:
+                summary: Basic game join
+                value:
+                  playerName: "Bob"
       responses:
         '200':
-          description: Joined the game successfully.
+          description: Successfully joined the game
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GameResponse'
+              examples:
+                success:
+                  summary: Successful game join
+                  value:
+                    gameId: "ABC123"
+                    playerId: "player_789"
+                    playerName: "Bob"
+                    isHost: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/GameNotFound'
+        '409':
+          description: Cannot join game (game full, already started, or player already in game)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /game/start/{gameId}:
+  /games/{gameId}/start:
     put:
-      summary: Start the game.
-      description: This endpoint allows the host to start the game once all players are ready.
+      summary: Start the game
+      description: |
+        Starts the game. Only the host can start the game, and it requires 
+        at least 3 players to begin.
       operationId: startGame
       tags:
         - Game Management
       parameters:
-        - $ref: '#/components/parameters/gameId'
+        - $ref: '#/components/parameters/GameId'
       responses:
         '204':
-          description: Game started successfully.
-        '501':
-          description: Error, the game has already started or is not ready to start.
+          description: Game started successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Only the host can start the game
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/GameNotFound'
+        '422':
+          description: Game cannot be started (not enough players, already started, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-    
-
-  /game/{gameId}: 
+  /games/{gameId}:
     delete:
-      summary: Finish the game.
-      description: This endpoint allows the host to finish the game.
-      operationId: finishGame
+      summary: End the game
+      description: |
+        Ends the game. Only the host can end the game.
+        This will remove all players and clean up game resources.
+      operationId: endGame
       tags:
         - Game Management
       parameters:
-        - $ref: '#/components/parameters/gameId'
+        - $ref: '#/components/parameters/GameId'
       responses:
         '204':
-          description: Game finished successfully.
+          description: Game ended successfully
+        '403':
+          description: Only the host can end the game
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/GameNotFound'
 
-  /game/{gameId}/player/{playerId}:
+  /games/{gameId}/players/{playerId}:
     delete:
-      summary: Remove a player from the game (only host can do this before the game starts).
-      description: This endpoint allows the host to remove a player from the game before it starts.
+      summary: Remove a player from the game
+      description: |
+        Removes a player from the game. Only the host can remove players,
+        and this can only be done before the game starts.
       operationId: removePlayer
       tags:
         - Game Management
       parameters:
-        - $ref: '#/components/parameters/gameId'
-        - $ref: '#/components/parameters/playerId'
+        - $ref: '#/components/parameters/GameId'
+        - $ref: '#/components/parameters/PlayerId'
       responses:
         '204':
-          description: Player removed successfully.
-  /clue:
+          description: Player removed successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Only the host can remove players
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/GameNotFound'
+        '422':
+          description: Cannot remove player (game already started or player not found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /clues:
     post:
-      summary: Give a clue to the actual player
-      description: This endpoint allows a player to give a clue.
-      operationId: giveClue
+      summary: Submit a clue
+      description: |
+        Allows a player to submit a one-word clue for the current mystery word.
+        Players cannot submit clues when it's their turn to guess.
+      operationId: submitClue
       tags:
         - Clue Management
       requestBody:
@@ -129,138 +228,359 @@ paths:
         content:
           application/json:
             schema: 
-              $ref: '#/components/schemas/Clue'
-              
+              $ref: '#/components/schemas/ClueRequest'
+            examples:
+              basic:
+                summary: Basic clue submission
+                value:
+                  gameId: "ABC123"
+                  playerId: "player_456"
+                  word: "animal"
       responses:
         '204':
-          description: Sent clue successfully.
+          description: Clue submitted successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Player cannot submit clue (not their turn or game state doesn't allow)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/GameNotFound'
         '409':
-          description: Error sending clue
+          description: Clue conflicts with existing clue or game rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /game/{gameId}/resolve:
+  /games/{gameId}/guess:
     post:
-      summary: Player signals that they are attempting to guess the word.
-      description: This endpoint allows a player to signal that they are attempting to guess the word.
-      operationId: resolveGuess
+      summary: Submit a guess for the mystery word
+      description: |
+        Allows the current guesser to submit their guess for the mystery word.
+        Only the designated guesser can use this endpoint.
+      operationId: submitGuess
       tags:
         - Player Management
       parameters:
-        - in: path
-          name: gameId
-          required: true
-          schema:
-            type: string
-          description: The ID of the game
+        - $ref: '#/components/parameters/GameId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Solution'
+              $ref: '#/components/schemas/GuessRequest'
+            examples:
+              correct:
+                summary: Correct guess
+                value:
+                  playerId: "player_456"
+                  result: "correct"
+              incorrect:
+                summary: Incorrect guess
+                value:
+                  playerId: "player_456"
+                  result: "incorrect"
       responses:
         '200':
-          description: Guess attempt acknowledged
+          description: Guess submitted and processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuessResponse'
         '400':
-          description: Invalid request (e.g., game not started or not the guesser's turn)
-  /game/{gameId}/nextRound:
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Player is not the current guesser
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/GameNotFound'
+
+  /games/{gameId}/next-round:
     post:
-      summary: Advance to the next round.
-      description: This endpoint allows the game to advance to the next round after a guess has been made.
+      summary: Advance to the next round
+      description: |
+        Advances the game to the next round after a guess has been resolved.
+        This rotates the guesser and starts a new round with a new mystery word.
       operationId: nextRound
       tags:
         - Game Management
       parameters:
-        - $ref: '#/components/parameters/gameId'
+        - $ref: '#/components/parameters/GameId'
       responses:
         '204':
-          description: Advanced to the next round successfully.
+          description: Advanced to next round successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/GameNotFound'
+        '422':
+          description: Cannot advance to next round (current round not complete)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /game/{gameId}/giveNumber/{number}:
+  /games/{gameId}/select-number/{number}:
     post:
-      summary: The player that is guessing gives a number.
-      description: This endpoint allows the player who is guessing to give a number.
-      operationId: giveNumber
+      summary: Select a number during gameplay
+      description: |
+        Allows the current guesser to select a number, typically used for
+        indicating confidence level or selecting from multiple choice options.
+      operationId: selectNumber
       tags:
         - Player Management
       parameters:
-        - in: path
-          name: gameId
-          required: true
-          schema:
-            type: string
-          description: The ID of the game
-        - in: path
-          name: number
-          required: true
-          schema:
-            type: string
-          description: Selected number by the player
+        - $ref: '#/components/parameters/GameId'
+        - $ref: '#/components/parameters/Number'
       responses:
         '200':
-          description: Guess attempt acknowledged
+          description: Number selection acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NumberSelectionResponse'
         '400':
-          description: Invalid request (e.g., game not started or not the guesser's turn)
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Player is not the current guesser
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/GameNotFound'
 
 components:
   parameters:
-    gameId:
+    GameId:
       name: gameId
       in: path
       required: true
       schema:
         type: string
-      description: ID of the game
+        pattern: '^[A-Z0-9]{6}$'
+        example: "ABC123"
+      description: Unique identifier for the game (6 alphanumeric characters)
 
-    playerId:
+    PlayerId:
       name: playerId
       in: path
       required: true
       schema:
         type: string
-      description: ID of the player
-      
+        pattern: '^player_[a-zA-Z0-9]+$'
+        example: "player_456"
+      description: Unique identifier for the player
+
+    Number:
+      name: number
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 10
+        example: 5
+      description: Number selected by the player (1-10)
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or malformed request body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation_error:
+              summary: Validation error
+              value:
+                error: "VALIDATION_ERROR"
+                message: "Required field 'playerName' is missing"
+                code: 400
+
+    GameNotFound:
+      description: Game with the specified ID was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            not_found:
+              summary: Game not found
+              value:
+                error: "GAME_NOT_FOUND"
+                message: "Game with ID 'ABC123' was not found"
+                code: 404
+
   schemas:
+    CreateGameRequest:
+      type: object
+      required:
+        - playerName
+      properties:
+        playerName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_\s]+$'
+          description: Name of the player creating the game
+          example: "Alice"
+      additionalProperties: false
+
+    JoinGameRequest:
+      type: object
+      required:
+        - playerName
+      properties:
+        playerName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_\s]+$'
+          description: Name of the player joining the game
+          example: "Bob"
+      additionalProperties: false
+
     GameResponse:
       type: object
-      properties:
-        gameId:
-          type: string
-          example: "ABC723A"
-          description: The ID of the game, which is unique for each game. Its composed by 6 characters.
-        playerId:
-          type: string
-          example: "player456"
-
-    Clue:
-      type: object
-      properties:
-        gameId:
-          type: string
-          description: The ID of the game which the player is gaming
-        playerId:
-          type: string
-          description: The ID of the player who sent the clue
-        word:
-          type: string
-          description: The clue word
       required:
-        - playerId
         - gameId
-        - word
-      example:
-        gameId: "7237AV"
-        playerId: "player123"
-        word: "animal"
-    Solution:
+        - playerId
+        - playerName
+        - isHost
+      properties:
+        gameId:
+          type: string
+          pattern: '^[A-Z0-9]{6}$'
+          description: Unique identifier for the game
+          example: "ABC123"
+        playerId:
+          type: string
+          pattern: '^player_[a-zA-Z0-9]+$'
+          description: Unique identifier for the player
+          example: "player_456"
+        playerName:
+          type: string
+          description: Display name of the player
+          example: "Alice"
+        isHost:
+          type: boolean
+          description: Whether this player is the host of the game
+          example: true
+      additionalProperties: false
+
+    ClueRequest:
       type: object
+      required:
+        - gameId
+        - playerId
+        - word
+      properties:
+        gameId:
+          type: string
+          pattern: '^[A-Z0-9]{6}$'
+          description: Unique identifier for the game
+          example: "ABC123"
+        playerId:
+          type: string
+          pattern: '^player_[a-zA-Z0-9]+$'
+          description: Unique identifier for the player submitting the clue
+          example: "player_456"
+        word:
+          type: string
+          minLength: 1
+          maxLength: 30
+          pattern: '^[a-zA-Z]+$'
+          description: Single word clue (no spaces, numbers, or special characters)
+          example: "animal"
+      additionalProperties: false
+
+    GuessRequest:
+      type: object
+      required:
+        - playerId
+        - result
       properties:
         playerId:
           type: string
-          description: The ID of the player who sent the clue
-        word:
+          pattern: '^player_[a-zA-Z0-9]+$'
+          description: Unique identifier for the player making the guess
+          example: "player_456"
+        result:
           type: string
-          enum: [right, wrong]
-          example: right
+          enum: [correct, incorrect]
+          description: Result of the guess attempt
+          example: "correct"
+      additionalProperties: false
+
+    GuessResponse:
+      type: object
       required:
-        - playerId
-        - word
+        - result
+        - roundComplete
+      properties:
+        result:
+          type: string
+          enum: [correct, incorrect]
+          description: Result of the guess
+          example: "correct"
+        roundComplete:
+          type: boolean
+          description: Whether the current round is complete
+          example: true
+        score:
+          type: integer
+          minimum: 0
+          description: Current game score (if applicable)
+          example: 5
+      additionalProperties: false
+
+    NumberSelectionResponse:
+      type: object
+      required:
+        - selectedNumber
+        - acknowledged
+      properties:
+        selectedNumber:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: The number that was selected
+          example: 5
+        acknowledged:
+          type: boolean
+          description: Whether the selection was acknowledged
+          example: true
+      additionalProperties: false
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - code
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+          example: "GAME_NOT_FOUND"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Game with ID 'ABC123' was not found"
+        code:
+          type: integer
+          description: HTTP status code
+          example: 404
+        details:
+          type: object
+          description: Additional error details (optional)
+          additionalProperties: true
+      additionalProperties: false
